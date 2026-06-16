@@ -1,0 +1,8 @@
+fastapi[standard]
+pydantic
+pwdlib[argon2]
+python-dotenv
+sqlmodel
+psycopg[binary]
+pyjwt           
+python-multipart 

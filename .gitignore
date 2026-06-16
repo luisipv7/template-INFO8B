@@ -1,0 +1,97 @@
+# .gitignore genérico — ajuste conforme seu projeto
+
+# Sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Dependências
+node_modules/
+bower_components/
+
+# Arquivos de ambiente / segredos
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+*.crt
+
+# Builds / artefatos
+dist/
+build/
+out/
+target/
+bin/
+obj/
+*.o
+*.a
+*.so
+*.dll
+*.exe
+*.class
+*.jar
+.antigravity/
+.claude/
+.codex/
+.docker/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+env/
+venv/
+.venv/
+
+# Java / Maven / Gradle
+.mvn/
+.gradle/
+build/
+target/
+
+# .NET
+*.user
+*.rsuser
+*.suo
+*.userosscache
+*.userprefs
+*.csproj.user
+*.cache
+*.ilk
+*.pdb
+
+# IDEs / editores
+.vscode/
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# macOS
+.AppleDouble
+.LSOverride
+
+# Cobertura / relatórios
+coverage/
+coverage.*
+*.lcov
+
+# Rust / Cargo
+target/
+
+# Go
+/bin/
+/pkg/
+
+# Arquivos temporários
+*.tmp
+*.swp
+*~
