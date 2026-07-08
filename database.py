@@ -3,8 +3,7 @@ import os
 from dotenv import load_dotenv
 from sqlmodel import Session, SQLModel, create_engine
 
-from models.task_model import Task
-from models.user_model import User
+from models.auth import User
 
 load_dotenv()
 

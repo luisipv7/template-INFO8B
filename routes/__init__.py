@@ -1,3 +1,3 @@
-from routes.task_routes import router
+from routes.auth import router as auth_router
 
-__all__ = ["router"]
+__all__ = ["auth_router"]
