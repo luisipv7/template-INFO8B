@@ -31,8 +31,9 @@ Assistente de ambiente - template-INFO8B
   bash aluno.sh --cadastro         Abre o cadastro do GitHub no navegador
   bash aluno.sh --setup            Instala XAMPP, Git, VS Code e Python
   bash aluno.sh --github --username "Seu Nome" --email "seu@email.com"
-                                   Configura o Git e cria a chave SSH
-  bash aluno.sh --check            Mostra o que está instalado/configurado
+                                   Apaga chaves/credenciais do usuário anterior,
+                                   configura o Git e cria uma chave SSH nova
+  bash aluno.sh --check           Mostra o que está instalado/configurado
 
 Variáveis opcionais: XAMPP_DIR (padrão /opt/lampp), XAMPP_VERSION (padrão 8.2.12)
 EOF
@@ -186,6 +187,23 @@ do_setup() {
 }
 
 # ------------------------------------------------------- git + github
+# Computador de laboratório passa por vários alunos: apaga chaves SSH,
+# credenciais e configuração Git do usuário anterior (mantém authorized_keys).
+reset_previous_user() {
+  local xdg="${XDG_CONFIG_HOME:-$HOME/.config}" t
+  info "Apagando chaves SSH, credenciais e configuração Git do usuário anterior..."
+  printf 'protocol=https\nhost=github.com\n\n' | git credential reject >/dev/null 2>&1
+  if is_windows && command -v cmdkey.exe >/dev/null; then
+    for t in $(MSYS_NO_PATHCONV=1 cmdkey.exe /list | grep -oE '([^[:space:]]+:target=)?git:https?://[^[:space:]]+'); do
+      MSYS_NO_PATHCONV=1 cmdkey.exe "/delete:$t" >/dev/null
+    done
+  fi
+  command -v ssh-add >/dev/null && ssh-add -D >/dev/null 2>&1
+  [ -d "$HOME/.ssh" ] && find "$HOME/.ssh" -mindepth 1 -maxdepth 1 ! -name authorized_keys -exec rm -rf {} +
+  rm -f "$HOME/.gitconfig" "$HOME/.git-credentials" "$xdg/git/config" "$xdg/git/credentials"
+  ok "Identidade anterior removida."
+}
+
 do_github() {
   title "Configurando Git e chave SSH do GitHub"
   local name="$GH_NAME" email="$GH_EMAIL"
@@ -195,6 +213,9 @@ do_github() {
   [ -z "$name" ] && { fail "Nome vazio."; return; }
   [[ "$email" =~ ^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$ ]] || { fail "E-mail inválido: $email"; return; }
   command -v git >/dev/null || { fail "Git não encontrado. Rode primeiro: bash aluno.sh --setup"; return; }
+  command -v ssh-keygen >/dev/null || { fail "ssh-keygen não encontrado. Rode primeiro: bash aluno.sh --setup"; return; }
+
+  reset_previous_user
 
   git config --global user.name "$name"
   git config --global user.email "$email"
@@ -203,21 +224,18 @@ do_github() {
   ok "git config --global user.name  = $(git config --global user.name)"
   ok "git config --global user.email = $(git config --global user.email)"
 
-  command -v ssh-keygen >/dev/null || { fail "ssh-keygen não encontrado. Rode primeiro: bash aluno.sh --setup"; return; }
   local key="$HOME/.ssh/id_ed25519"
   mkdir -p "$HOME/.ssh" && chmod 700 "$HOME/.ssh"
-  if [ -f "$key" ]; then
-    info "Você já tem uma chave em $key - ela será reaproveitada (não sobrescrevo chaves)."
-  else
-    info "Gerando chave SSH ed25519 (sem senha, para uso em aula)..."
-    ssh-keygen -q -t ed25519 -C "$email" -f "$key" -N "" || { fail "Falha ao gerar a chave SSH."; return; }
-    ok "Chave criada: $key.pub"
-  fi
+  info "Gerando chave SSH ed25519 nova (sem senha, para uso em aula)..."
+  ssh-keygen -q -t ed25519 -C "$email" -f "$key" -N "" || { fail "Falha ao gerar a chave SSH."; return; }
+  ok "Chave criada: $key.pub"
 
   copy_clip < "$key.pub" && ok "Chave pública COPIADA para a área de transferência."
   echo; cat "$key.pub"; echo
   cat <<EOF
 Agora no GitHub (a página vai abrir):
+  0. Confira se o navegador está logado na SUA conta (foto no canto superior
+     direito). Se for de outra pessoa: Sign out e entre com a sua.
   1. Title: um nome para este computador (ex.: PC Lab 3)
   2. Key type: Authentication Key
   3. Key: cole a chave acima  ->  Add SSH key

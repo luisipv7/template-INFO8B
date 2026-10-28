@@ -37,8 +37,9 @@ Assistente de ambiente - template-INFO8B
   aluno.cmd --setup            Instala XAMPP, Git (Git Bash), VS Code e Python
                                e deixa o Git Bash como terminal do VS Code
   aluno.cmd --github --username "Seu Nome" --email "seu@email.com"
-                               Configura o Git e cria a chave SSH
-  aluno.cmd --check            Mostra o que está instalado/configurado
+                               Apaga chaves/credenciais do usuário anterior,
+                               configura o Git e cria uma chave SSH nova
+  aluno.cmd --check           Mostra o que está instalado/configurado
 
 As opções podem ser combinadas:
   aluno.cmd --setup --github --username "Maria Silva" --email "maria@ex.com"
@@ -307,6 +308,27 @@ function Invoke-Setup {
 }
 
 # ------------------------------------------------------- git + github
+# Computador de laboratório passa por vários alunos: apaga chaves SSH,
+# credenciais e configuração Git do usuário anterior (mantém authorized_keys).
+function Clear-PreviousUser([string]$Git) {
+    Info 'Apagando chaves SSH, credenciais e configuração Git do usuário anterior...'
+    "protocol=https`nhost=github.com`n" | & $Git credential reject 2>$null | Out-Null
+    $creds = cmdkey.exe /list | Out-String
+    foreach ($t in [regex]::Matches($creds, '(\S+:target=)?git:https?://\S+')) { cmdkey.exe "/delete:$($t.Value)" | Out-Null }
+    $sshAdd = Find-SshTool 'ssh-add'
+    if ($sshAdd) { & $sshAdd -D 2>$null | Out-Null }
+
+    $sshDir = Join-Path $env:USERPROFILE '.ssh'
+    if (Test-Path $sshDir) {
+        Get-ChildItem $sshDir -Force | Where-Object Name -ne 'authorized_keys' | Remove-Item -Recurse -Force
+    }
+    $gitHome = if ($env:HOME) { $env:HOME } else { $env:USERPROFILE }
+    $xdg     = if ($env:XDG_CONFIG_HOME) { $env:XDG_CONFIG_HOME } else { Join-Path $gitHome '.config' }
+    Remove-Item -Force -ErrorAction SilentlyContinue -Path (Join-Path $gitHome '.gitconfig'),
+        (Join-Path $gitHome '.git-credentials'), (Join-Path $xdg 'git\config'), (Join-Path $xdg 'git\credentials')
+    Ok 'Identidade anterior removida.'
+}
+
 function Invoke-Github([string]$Name, [string]$Email) {
     Title 'Configurando Git e chave SSH do GitHub'
     if (-not $Name)  { $Name  = Read-Host 'Seu nome para os commits (ex.: Maria Silva)' }
@@ -318,6 +340,10 @@ function Invoke-Github([string]$Name, [string]$Email) {
     Update-SessionPath
     $git = Find-GitExe
     if (-not $git) { Fail 'Git não encontrado. Rode primeiro: aluno.cmd --setup'; return }
+    $keygen = Find-SshTool 'ssh-keygen'
+    if (-not $keygen) { Fail 'ssh-keygen não encontrado. Rode primeiro: aluno.cmd --setup'; return }
+
+    Clear-PreviousUser $git
 
     & $git config --global user.name $Name
     & $git config --global user.email $Email
@@ -326,22 +352,15 @@ function Invoke-Github([string]$Name, [string]$Email) {
     Ok "git config --global user.name  = $(& $git config --global user.name)"
     Ok "git config --global user.email = $(& $git config --global user.email)"
 
-    $keygen = Find-SshTool 'ssh-keygen'
-    if (-not $keygen) { Fail 'ssh-keygen não encontrado. Rode primeiro: aluno.cmd --setup'; return }
-
     $sshDir = Join-Path $env:USERPROFILE '.ssh'
     $key    = Join-Path $sshDir 'id_ed25519'
     New-Item -ItemType Directory -Force -Path $sshDir | Out-Null
 
-    if (Test-Path $key) {
-        Info "Você já tem uma chave em $key - ela será reaproveitada (não sobrescrevo chaves)."
-    } else {
-        Info 'Gerando chave SSH ed25519 (sem senha, para uso em aula)...'
-        $p = Start-Process -FilePath $keygen -NoNewWindow -Wait -PassThru -ArgumentList `
-             "-q -t ed25519 -C `"$Email`" -f `"$key`" -N `"`""
-        if ($p.ExitCode -ne 0 -or -not (Test-Path "$key.pub")) { Fail 'Falha ao gerar a chave SSH.'; return }
-        Ok "Chave criada: $key.pub"
-    }
+    Info 'Gerando chave SSH ed25519 nova (sem senha, para uso em aula)...'
+    $p = Start-Process -FilePath $keygen -NoNewWindow -Wait -PassThru -ArgumentList `
+         "-q -t ed25519 -C `"$Email`" -f `"$key`" -N `"`""
+    if ($p.ExitCode -ne 0 -or -not (Test-Path "$key.pub")) { Fail 'Falha ao gerar a chave SSH.'; return }
+    Ok "Chave criada: $key.pub"
 
     $pub = ([IO.File]::ReadAllText("$key.pub")).Trim()
     try { Set-Clipboard -Value $pub; Ok 'Chave pública COPIADA para a área de transferência.' } catch {}
@@ -350,6 +369,8 @@ function Invoke-Github([string]$Name, [string]$Email) {
     Write-Host ''
     Write-Host @"
 Agora no GitHub (a página vai abrir):
+  0. Confira se o navegador está logado na SUA conta (foto no canto superior
+     direito). Se for de outra pessoa: Sign out e entre com a sua.
   1. Title: um nome para este computador (ex.: PC Lab 3)
   2. Key type: Authentication Key
   3. Key: cole com Ctrl+V  ->  Add SSH key

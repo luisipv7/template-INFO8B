@@ -52,14 +52,16 @@ aluno.cmd --github --username "Seu Nome" --email "seu.email@exemplo.com"
 
 Use o **mesmo e-mail do cadastro no GitHub**. O comando faz o seguinte:
 
-1. Configura `git config --global user.name` e `user.email`.
-2. Cria a chave SSH `~/.ssh/id_ed25519`. Se você já tiver uma chave, ela é
-   reaproveitada e nunca sobrescrita.
-3. Copia a chave pública para a área de transferência e abre
-   [github.com/settings/ssh/new](https://github.com/settings/ssh/new). Lá,
-   preencha um **Title** (ex.: `PC Lab 3`), cole a chave com `Ctrl+V` e
-   clique em **Add SSH key**.
-4. Volte ao terminal e pressione ENTER para testar a conexão.
+1. Apaga o que o usuário anterior deixou no computador: as chaves em `~/.ssh`
+   (exceto `authorized_keys`), o `~/.gitconfig` global e as credenciais do Git
+   salvas (Gerenciador de Credenciais do Windows e `~/.git-credentials`).
+2. Configura `git config --global user.name` e `user.email`.
+3. Cria uma chave SSH nova `~/.ssh/id_ed25519`.
+4. Copia a chave pública para a área de transferência e abre
+   [github.com/settings/ssh/new](https://github.com/settings/ssh/new). Confira
+   se o navegador está logado na **sua** conta. Depois preencha um **Title**
+   (ex.: `PC Lab 3`), cole a chave com `Ctrl+V` e clique em **Add SSH key**.
+5. Volte ao terminal e pressione ENTER para testar a conexão.
 
 > Não é preciso informar senha: o GitHub não aceita senha em comandos Git.
 > A chave SSH é a sua identificação. Por isso, ao clonar, use o endereço
